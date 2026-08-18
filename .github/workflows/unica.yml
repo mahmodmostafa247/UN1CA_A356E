@@ -116,6 +116,58 @@ jobs:
 
 
       # ---------------------------------------------------------
+      # FIND ORIGINAL FILE_CONTEXTS SOURCES
+      # ---------------------------------------------------------
+      - name: "Find malformed file_contexts sources"
+        run: |
+          cd UN1CA
+
+          echo "=========================================="
+          echo " Searching source file_contexts"
+          echo "=========================================="
+
+          echo ""
+          echo "===== SRIBmidas ====="
+          grep -Rni --exclude-dir=.git \
+            "SRIBmidas_aiUPSCALER" . 2>/dev/null || true
+
+          echo ""
+          echo "===== sehradio ====="
+          grep -Rni --exclude-dir=.git \
+            "sehradio_manifest_2_30" . 2>/dev/null || true
+
+          echo ""
+          echo "===== audio_policy ====="
+          grep -Rni --exclude-dir=.git \
+            "audio_policy_configuration_sec" . 2>/dev/null || true
+
+          echo ""
+          echo "===== radio 1.6 ====="
+          grep -Rni --exclude-dir=.git \
+            "android\.hardware\.radio@1\.6" . 2>/dev/null || true
+
+          echo ""
+          echo "===== light V1 ====="
+          grep -Rni --exclude-dir=.git \
+            "vendor\.samsung\.hardware\.light-V1-ndk_platform" . 2>/dev/null || true
+
+          echo ""
+          echo "===== tlc iccc ====="
+          grep -Rni --exclude-dir=.git \
+            "vendor\.samsung\.hardware\.tlc\.iccc@1\.0" . 2>/dev/null || true
+
+          echo ""
+          echo "===== radio 1.5 ====="
+          grep -Rni --exclude-dir=.git \
+            "android\.hardware\.radio@1\.5" . 2>/dev/null || true
+
+          echo ""
+          echo "=========================================="
+          echo " Search finished"
+          echo "=========================================="
+
+
+      # ---------------------------------------------------------
       # Build
       # ---------------------------------------------------------
       - name: "Build it!"
@@ -155,21 +207,23 @@ jobs:
           echo "$FILE"
           echo ""
 
-          # ---------------------------------------------------
-          # Check if generated file exists
-          # ---------------------------------------------------
           if [ ! -f "$FILE" ]; then
             echo "❌ file_context-vendor NOT FOUND!"
             echo ""
             echo "Searching for all file_context-vendor files..."
-            find UN1CA/out -type f -name "file_context-vendor" -print 2>/dev/null || true
+
+            find UN1CA/out \
+              -type f \
+              -name "file_context-vendor" \
+              -print 2>/dev/null || true
 
             echo ""
             echo "Searching for all file_context files..."
-            find UN1CA/out -type f \( \
-              -name "file_context*" -o \
-              -name "*file_context*" \
-            \) -print 2>/dev/null | head -100 || true
+
+            find UN1CA/out \
+              -type f \
+              \( -name "file_context*" -o -name "*file_context*" \) \
+              -print 2>/dev/null | head -100 || true
 
             exit 0
           fi
@@ -177,16 +231,10 @@ jobs:
           echo "✅ file_context-vendor exists."
           echo ""
 
-          # ---------------------------------------------------
-          # Show file information
-          # ---------------------------------------------------
           echo "===== FILE INFORMATION ====="
           ls -lh "$FILE"
           wc -l "$FILE"
 
-          # ---------------------------------------------------
-          # Show exact area around line 2025
-          # ---------------------------------------------------
           echo ""
           echo "======================================================"
           echo "        LINES 2015 - 2035"
@@ -194,10 +242,6 @@ jobs:
 
           nl -ba "$FILE" | sed -n '2015,2035p'
 
-          # ---------------------------------------------------
-          # Show exact raw contents around line 2025
-          # cat -A exposes hidden characters/tabs/etc.
-          # ---------------------------------------------------
           echo ""
           echo "======================================================"
           echo "        RAW CONTENT AROUND LINE 2025"
@@ -205,9 +249,6 @@ jobs:
 
           sed -n '2015,2035p' "$FILE" | cat -A
 
-          # ---------------------------------------------------
-          # Find lines with less than 2 fields
-          # ---------------------------------------------------
           echo ""
           echo "======================================================"
           echo "        MALFORMED LINES"
@@ -226,9 +267,6 @@ jobs:
             echo "✅ No obvious lines with fewer than 2 fields found."
           fi
 
-          # ---------------------------------------------------
-          # Specifically inspect line 2025
-          # ---------------------------------------------------
           echo ""
           echo "======================================================"
           echo "        EXACT LINE 2025"
@@ -236,9 +274,6 @@ jobs:
 
           sed -n '2025p' "$FILE" | cat -A
 
-          # ---------------------------------------------------
-          # Count fields on line 2025
-          # ---------------------------------------------------
           echo ""
           echo "===== FIELD COUNT FOR LINE 2025 ====="
 
@@ -248,9 +283,6 @@ jobs:
               print "FIELD " i ": [" $i "]"
           }' "$FILE"
 
-          # ---------------------------------------------------
-          # Show previous and next context
-          # ---------------------------------------------------
           echo ""
           echo "======================================================"
           echo "        CONTEXT CHECK"
@@ -270,7 +302,6 @@ jobs:
 
       # ---------------------------------------------------------
       # Pull Finished ROM
-      # Only attempt if build actually produced output.
       # ---------------------------------------------------------
       - name: "Pull Finished ROM"
         if: always()
