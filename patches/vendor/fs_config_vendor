@@ -1,0 +1,4 @@
+vendor 0 2000 755 capabilities=0x0
+vendor/bin/rild 0 2000 755 capabilities=0x0
+vendor/bin/hw/vendor.samsung.hardware.light-service 0 2000 755 capabilities=0x0
+vendor/bin/hw/vendor.samsung.hardware.tlc.iccc@1.0-service 0 2000 755 capabilities=0x0
