@@ -94,7 +94,7 @@ jobs:
 
 
       # ---------------------------------------------------------
-      # Clone UN1CA + Copy target files
+      # Clone UN1CA + Setup Target
       # ---------------------------------------------------------
       - name: "Clone Base Source & Setup Target"
         run: |
@@ -103,20 +103,108 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Copy your repo's target files into UN1CA source
+          echo "===== SOURCE TARGET DIRECTORY ====="
+          find target/a35 -maxdepth 3 -type f | sort | head -300
+
+          echo ""
+          echo "===== COPYING A35X TARGET ====="
+
           mkdir -p UN1CA/target/a35x
 
-          cp -r target/a35/* UN1CA/target/a35x/ \
-            2>/dev/null || \
-          cp -r * UN1CA/target/a35x/ \
-            2>/dev/null || true
+          if [ ! -d "target/a35" ]; then
+            echo "❌ target/a35 does not exist!"
+            exit 1
+          fi
 
-          echo "===== TARGET DIRECTORY ====="
+          # Copy ONLY the contents of target/a35
+          # Do NOT use 'cp -r *' because that copies the entire
+          # repository, including UN1CA itself.
+          rsync -a --delete target/a35/ UN1CA/target/a35x/
+
+          echo ""
+          echo "===== RESULTING A35X TARGET ====="
           find UN1CA/target/a35x -maxdepth 3 -type f | sort | head -300
+
+          echo ""
+          echo "===== CHECK FOR ACCIDENTAL NESTED UN1CA ====="
+
+          if [ -d "UN1CA/target/a35x/UN1CA" ]; then
+            echo "❌ ERROR: Nested UN1CA directory detected!"
+            find UN1CA/target/a35x/UN1CA -maxdepth 2 -type f | head -50
+            exit 1
+          else
+            echo "✅ No nested UN1CA directory."
+          fi
 
 
       # ---------------------------------------------------------
-      # FIND ORIGINAL FILE_CONTEXTS SOURCES
+      # Check A35x file_contexts BEFORE BUILD
+      # ---------------------------------------------------------
+      - name: "Check A35x file_contexts"
+        run: |
+          echo "=========================================="
+          echo "        A35X FILE_CONTEXTS CHECK"
+          echo "=========================================="
+
+          echo ""
+          echo "===== TARGET VENDOR PATCH FILES ====="
+
+          find UN1CA/target/a35x/patches/vendor \
+            -maxdepth 2 \
+            -type f \
+            -print 2>/dev/null || true
+
+          echo ""
+          echo "===== file_contexts_vendor ====="
+
+          FILE="UN1CA/target/a35x/patches/vendor/file_contexts_vendor"
+
+          if [ -f "$FILE" ]; then
+            echo "✅ Found:"
+            echo "$FILE"
+            echo ""
+            cat "$FILE"
+          else
+            echo "❌ file_contexts_vendor NOT FOUND!"
+          fi
+
+          echo ""
+          echo "===== A73X PREBUILT FILE_CONTEXT ====="
+
+          PREBUILT="UN1CA/target/a35x/prebuilts/samsung/a73xqxx/file_context-vendor"
+
+          if [ -f "$PREBUILT" ]; then
+            echo "✅ Found:"
+            echo "$PREBUILT"
+            echo ""
+            cat "$PREBUILT"
+          else
+            echo "⚠️ A73X prebuilt file_context-vendor not found."
+          fi
+
+          echo ""
+          echo "===== SEARCH IMPORTANT FILE_CONTEXT ENTRIES ====="
+
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "audio_policy_configuration_sec" \
+            UN1CA/target/a35x 2>/dev/null || true
+
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "SRIBMidas_aiUPSCALER" \
+            UN1CA/target/a35x 2>/dev/null || true
+
+          echo ""
+          echo "=========================================="
+          echo "        END A35X CHECK"
+          echo "=========================================="
+
+
+      # ---------------------------------------------------------
+      # Find malformed file_context source entries
       # ---------------------------------------------------------
       - name: "Find malformed file_contexts sources"
         run: |
@@ -128,38 +216,59 @@ jobs:
 
           echo ""
           echo "===== SRIBmidas ====="
-          grep -Rni --exclude-dir=.git \
-            "SRIBmidas_aiUPSCALER" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "SRIBmidas_aiUPSCALER" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== sehradio ====="
-          grep -Rni --exclude-dir=.git \
-            "sehradio_manifest_2_30" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "sehradio_manifest_2_30" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== audio_policy ====="
-          grep -Rni --exclude-dir=.git \
-            "audio_policy_configuration_sec" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "audio_policy_configuration_sec" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== radio 1.6 ====="
-          grep -Rni --exclude-dir=.git \
-            "android\.hardware\.radio@1\.6" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "android\.hardware\.radio@1\.6" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== light V1 ====="
-          grep -Rni --exclude-dir=.git \
-            "vendor\.samsung\.hardware\.light-V1-ndk_platform" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "vendor\.samsung\.hardware\.light-V1-ndk_platform" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== tlc iccc ====="
-          grep -Rni --exclude-dir=.git \
-            "vendor\.samsung\.hardware\.tlc\.iccc@1\.0" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "vendor\.samsung\.hardware\.tlc\.iccc@1\.0" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "===== radio 1.5 ====="
-          grep -Rni --exclude-dir=.git \
-            "android\.hardware\.radio@1\.5" . 2>/dev/null || true
+          grep -Rni \
+            --exclude-dir=.git \
+            --include='file_context*' \
+            "android\.hardware\.radio@1\.5" \
+            target/a35x 2>/dev/null || true
 
           echo ""
           echo "=========================================="
@@ -190,14 +299,14 @@ jobs:
 
 
       # ---------------------------------------------------------
-      # DEBUG FILE_CONTEXTS
-      # This runs even if the build fails.
+      # DEBUG GENERATED FILE_CONTEXTS
+      # Runs even if build fails.
       # ---------------------------------------------------------
       - name: "Debug vendor file_contexts"
         if: always()
         run: |
           echo "======================================================"
-          echo "        UN1CA FILE_CONTEXTS DEBUG"
+          echo "        UN1CA GENERATED FILE_CONTEXTS DEBUG"
           echo "======================================================"
 
           FILE="UN1CA/out/target/${{ github.event.inputs.device }}/work_dir/configs/file_context-vendor"
@@ -209,6 +318,7 @@ jobs:
 
           if [ ! -f "$FILE" ]; then
             echo "❌ file_context-vendor NOT FOUND!"
+
             echo ""
             echo "Searching for all file_context-vendor files..."
 
@@ -232,6 +342,7 @@ jobs:
           echo ""
 
           echo "===== FILE INFORMATION ====="
+
           ls -lh "$FILE"
           wc -l "$FILE"
 
@@ -244,7 +355,7 @@ jobs:
 
           echo ""
           echo "======================================================"
-          echo "        RAW CONTENT AROUND LINE 2025"
+          echo "        RAW CONTENT"
           echo "======================================================"
 
           sed -n '2015,2035p' "$FILE" | cat -A
@@ -264,7 +375,7 @@ jobs:
             echo "❌ Malformed lines found:"
             echo "$BAD_LINES"
           else
-            echo "✅ No obvious lines with fewer than 2 fields found."
+            echo "✅ No obvious malformed lines found."
           fi
 
           echo ""
@@ -289,10 +400,19 @@ jobs:
           echo "======================================================"
 
           awk '
-            NR >= 2020 && NR <= 2030 {
+            NR >= 2020 && NR <= 2035 {
               printf "LINE %d | fields=%d | %s\n", NR, NF, $0
             }
           ' "$FILE"
+
+          echo ""
+          echo "======================================================"
+          echo "        SEARCH GENERATED FILE FOR KNOWN BAD ENTRIES"
+          echo "======================================================"
+
+          grep -n \
+            -E 'SRIBMidas_aiUPSCALER|sehradio_manifest_2_30|audio_policy_configuration_sec|android\.hardware\.radio@1\.6|android\.hardware\.radio@1\.5|vendor\.samsung\.hardware\.light-V1-ndk_platform|vendor\.samsung\.hardware\.tlc\.iccc@1\.0' \
+            "$FILE" 2>/dev/null || true
 
           echo ""
           echo "======================================================"
@@ -320,7 +440,11 @@ jobs:
           echo ""
           echo "Searching for ROM ZIP..."
 
-          ROMS=$(find UN1CA/out -maxdepth 1 -type f -name "*.zip" -print)
+          ROMS=$(find UN1CA/out \
+            -maxdepth 1 \
+            -type f \
+            -name "*.zip" \
+            -print)
 
           if [ -n "$ROMS" ]; then
             echo "ROM ZIP files found:"
